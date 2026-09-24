@@ -21,6 +21,8 @@ import {
   type PlateSettingsJson,
 } from '@/utils/plate/plate-settings-serializer'
 import { validatePlateSettingsJson } from '@/utils/plate/plate-settings-validator'
+import { formatPlateWorkerError } from '@/utils/plate/plate-worker-error'
+import type { PlateBuilderOptions } from '@/utils/plate/plate-builder'
 
 const STORAGE_KEY = 'kle-ng-plate-settings'
 
@@ -39,12 +41,14 @@ const defaultSettings: PlateSettings = {
   rotaryEncoderHandwired: false,
   thickness: 1.5,
   outline: {
-    outlineType: 'none' as const,
+    outlineType: 'tight' as const,
     marginTop: 5,
     marginBottom: 5,
     marginLeft: 5,
     marginRight: 5,
-    tightMargin: 5,
+    tightMargin: 1,
+    bridgeWidth: 2,
+    repairMode: 'auto-repair',
     mergeWithCutouts: true,
     filletRadius: 1,
   },
@@ -227,7 +231,7 @@ export const usePlateGeneratorStore = defineStore('plateGenerator', () => {
 
       generationState.value = {
         status: 'error',
-        error: event.message || 'An unexpected error occurred in the plate generation worker.',
+        error: formatPlateWorkerError(event, 'An unexpected error occurred in the plate generation worker.'),
         result: null,
       }
 
@@ -238,6 +242,33 @@ export const usePlateGeneratorStore = defineStore('plateGenerator', () => {
     }
 
     w.postMessage({ keys, options })
+  }
+
+  /** Ensure Export has the current SVG/DXF result, generating it when necessary. */
+  async function generatePlateForExport(
+    snapshotKeys = JSON.parse(JSON.stringify(useKeyboardStore().keys)),
+    snapshotSettings: PlateSettings = JSON.parse(JSON.stringify(settings.value)),
+    metadata: Record<string, unknown> = JSON.parse(JSON.stringify(useKeyboardStore().metadata)),
+    optionsPatch: Pick<PlateBuilderOptions, 'originCenterMm' | 'customHoles'> = {},
+  ): Promise<PlateGenerationResult> {
+    const w = new PlateWorker()
+    const keys = JSON.parse(JSON.stringify(snapshotKeys))
+    const options = { ...snapshotSettings, ...optionsPatch, spacingX: Number(metadata.spacing_x ?? 19.05), spacingY: Number(metadata.spacing_y ?? 19.05) }
+    return new Promise((resolve, reject) => {
+      const timeout = window.setTimeout(() => { w.terminate(); reject(new Error('Plate generation timed out.')) }, 30000)
+      const finish = () => { window.clearTimeout(timeout); w.terminate() }
+      w.onmessage = (event: MessageEvent<PlateWorkerResponse>) => {
+        finish()
+        if (event.data.type === 'success') resolve(event.data.result)
+        else reject(new Error(event.data.message))
+      }
+      w.onerror = (event: ErrorEvent) => {
+        finish()
+        reject(new Error(formatPlateWorkerError(event)))
+      }
+      try { w.postMessage({ keys, options }) }
+      catch (error) { finish(); reject(error) }
+    })
   }
 
   /**
@@ -452,6 +483,7 @@ export const usePlateGeneratorStore = defineStore('plateGenerator', () => {
     autoRefresh,
     generationState,
     generatePlate,
+    generatePlateForExport,
     resetGeneration,
     requestRegenerate,
     applySettings,

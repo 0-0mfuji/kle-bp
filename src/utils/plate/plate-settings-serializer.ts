@@ -59,13 +59,16 @@ export interface PlateSettingsJsonOutlineRectangular {
   marginRight?: number
   filletRadius?: number
   mergeWithCutouts?: boolean
+  repairMode?: import('@/types/outline').OutlineRepairMode
 }
 
 export interface PlateSettingsJsonOutlineTight {
   outlineType: 'tight'
   tightMargin?: number
+  bridgeWidth?: number
   filletRadius?: number
   mergeWithCutouts?: boolean
+  repairMode?: import('@/types/outline').OutlineRepairMode
 }
 
 export type PlateSettingsJsonOutline =
@@ -151,6 +154,8 @@ export function serializePlateSettings(s: PlateSettings): PlateSettingsJson {
     outline = {
       outlineType: 'tight',
       tightMargin: s.outline.tightMargin,
+      bridgeWidth: s.outline.bridgeWidth,
+      repairMode: s.outline.repairMode,
       filletRadius: s.outline.filletRadius,
       mergeWithCutouts: s.outline.mergeWithCutouts,
     }
@@ -194,11 +199,14 @@ export function deserializePlateSettings(
       filletRadius: jsonOutline.filletRadius ?? defaults.outline.filletRadius,
       mergeWithCutouts: jsonOutline.mergeWithCutouts ?? defaults.outline.mergeWithCutouts,
       tightMargin: defaults.outline.tightMargin,
+      repairMode: defaults.outline.repairMode,
     }
   } else if (jsonOutline?.outlineType === 'tight') {
     outline = {
       outlineType: 'tight',
       tightMargin: jsonOutline.tightMargin ?? defaults.outline.tightMargin,
+      bridgeWidth: jsonOutline.bridgeWidth ?? defaults.outline.bridgeWidth,
+      repairMode: jsonOutline.repairMode ?? defaults.outline.repairMode,
       filletRadius: jsonOutline.filletRadius ?? defaults.outline.filletRadius,
       mergeWithCutouts: jsonOutline.mergeWithCutouts ?? defaults.outline.mergeWithCutouts,
       marginTop: defaults.outline.marginTop,

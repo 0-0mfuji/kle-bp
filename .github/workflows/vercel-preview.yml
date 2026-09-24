@@ -16,7 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     # Use environment protection for PRs only
     environment: ${{ github.event_name == 'pull_request_target' && 'pr-approval' || null }}
-    if: github.event.action != 'closed'
+    # Upstream-only (needs upstream Vercel secrets); skipped in forks.
+    if: github.repository == 'adamws/kle-ng' && github.event.action != 'closed'
 
     steps:
       - name: Checkout
@@ -98,7 +99,7 @@ jobs:
 
   cleanup-preview:
     runs-on: ubuntu-latest
-    if: github.event.action == 'closed'
+    if: github.repository == 'adamws/kle-ng' && github.event.action == 'closed'
 
     steps:
       - name: Comment PR

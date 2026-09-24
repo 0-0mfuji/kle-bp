@@ -274,29 +274,33 @@ export class CanvasRenderer {
     const getImageFn = (url: string) => this.getImage(url)
     const loadImageFn = (url: string, onLoad?: () => void) => this.loadImage(url, onLoad)
 
-    // Draw labels using LabelRenderer
-    if (isRotaryEncoder) {
-      this.labelRenderer.drawRotaryEncoderLabels(
-        this.ctx,
-        key,
-        params,
-        labelOptions,
-        getImageFn,
-        loadImageFn,
-        this.onImageLoadCallback,
-        hoveredLinkHref,
-      )
-    } else {
-      this.labelRenderer.drawKeyLabels(
-        this.ctx,
-        key,
-        params,
-        labelOptions,
-        getImageFn,
-        loadImageFn,
-        this.onImageLoadCallback,
-        hoveredLinkHref,
-      )
+    // Hardware items are identified in the right-side properties panel;
+    // suppress their KLE labels so text cannot obscure the part graphic.
+    const isHardwareItem = key.profile === 'hardware' || key.st?.startsWith('hardware:')
+    if (!isHardwareItem) {
+      if (isRotaryEncoder) {
+        this.labelRenderer.drawRotaryEncoderLabels(
+          this.ctx,
+          key,
+          params,
+          labelOptions,
+          getImageFn,
+          loadImageFn,
+          this.onImageLoadCallback,
+          hoveredLinkHref,
+        )
+      } else {
+        this.labelRenderer.drawKeyLabels(
+          this.ctx,
+          key,
+          params,
+          labelOptions,
+          getImageFn,
+          loadImageFn,
+          this.onImageLoadCallback,
+          hoveredLinkHref,
+        )
+      }
     }
     this.ctx.restore()
   }

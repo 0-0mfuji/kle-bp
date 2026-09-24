@@ -1,0 +1,5 @@
+allowBuilds:
+  '@adamws/kle-serial@https://codeload.github.com/adamws/kle-serial2/tar.gz/e70fbaa1c633a7091d41269396db189daef38bd3': true
+  '@parcel/watcher': true
+  esbuild: true
+blockExoticSubdeps: false

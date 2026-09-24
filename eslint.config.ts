@@ -17,6 +17,7 @@ export default defineConfigWithVueTs(
   },
 
   globalIgnores([
+    'refarence/**',
     '**/dist/**',
     '**/dist-ssr/**',
     '**/coverage/**',

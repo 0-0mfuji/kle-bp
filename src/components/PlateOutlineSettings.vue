@@ -22,7 +22,7 @@ const { settings } = storeToRefs(plateStore)
         >
           <option value="none">None</option>
           <option value="rectangular" title="Axis-aligned bounding box">Rectangular</option>
-          <option value="tight" title="Expanded hull that follows key cluster shape">Tight</option>
+          <option value="tight" title="Concave outline that follows the key cluster shape">Tight / concave</option>
         </select>
       </div>
 
@@ -128,7 +128,31 @@ const { settings } = storeToRefs(plateStore)
         >
           <template #suffix>mm</template>
         </CustomNumberInput>
-        <div class="form-text small">Uniform expansion around key cluster</div>
+        <div class="form-text small">Concave outline following the physical key cluster; Plate uses a connected material sheet.</div>
+        <label for="plateBridgeWidth" class="form-label form-label-sm mt-2">Plate web width</label>
+        <CustomNumberInput
+          id="plateBridgeWidth"
+          v-model="settings.outline.bridgeWidth"
+          :step="0.5"
+          :min="0.5"
+          :value-on-clear="2"
+          class="form-control form-control-sm"
+          size="default"
+          title="Minimum material web width used to connect separate plate regions"
+        >
+          <template #suffix>mm</template>
+        </CustomNumberInput>
+        <div class="form-text small">Separate regions are connected with deterministic minimum-width webs. Tight SVG/DXF includes the outer contour and cutouts. Output dimensions are nominal; kerf compensation is left to CAM or Size Adjustment.</div>
+        <label for="plateOutlineRepairMode" class="form-label form-label-sm mt-2">Narrow neck handling</label>
+        <select
+          id="plateOutlineRepairMode"
+          v-model="settings.outline.repairMode"
+          class="form-select form-select-sm"
+        >
+          <option value="auto-repair">Auto repair (recommended)</option>
+          <option value="legacy-warning">Legacy warning only</option>
+        </select>
+        <div class="form-text small">Auto repair thickens only unsafe narrow necks. Legacy keeps the original contour and reports a warning.</div>
       </div>
 
       <!-- Fillet Radius (shared by rectangular and tight) -->

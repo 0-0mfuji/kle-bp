@@ -110,8 +110,10 @@
                 independent top/bottom/left/right margins.
               </li>
               <li>
-                <strong>Tight</strong> - A hull that closely follows the key cluster shape, expanded
-                by a single uniform margin. Useful for non-rectangular layouts or split keyboards.
+                <strong>Tight / concave</strong> - A unioned outline that follows the key cluster,
+                including concave notches, expanded by a single uniform margin. It uses the same
+                shared geometry engine as PCB Auto tight and is useful for non-rectangular layouts
+                or split keyboards.
                 Ghost keys (keys with the <em>Ghost</em> property enabled) are included in the hull
                 calculation without producing switch cutouts — place them at the edges of the layout
                 to fine-tune the outline shape.

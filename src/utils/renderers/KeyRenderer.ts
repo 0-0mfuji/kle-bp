@@ -4,6 +4,7 @@ import type { MultiPolygon } from 'polygon-clipping'
 import type { KeyRenderParams } from '../canvas-renderer'
 import { isNonRectangular } from '../key-utils'
 import { lightenColor as computeLightenColor } from '../color-utils'
+import { hardwareArrowDirectionForRotation, hardwareLayoutDescriptor } from '@/data/hardware-layout'
 
 /**
  * Options for rendering a key
@@ -703,12 +704,14 @@ export class KeyRenderer {
       }
     }
 
+    const isHardwareItem = key.profile === 'hardware' || key.st?.startsWith('hardware:')
+
     // Check if this is a rotary encoder key
     // (check if 'switch mount' property equal 'rot_ec11')
     const isRotaryEncoder = key.sm === 'rot_ec11'
 
     // Render using unified vector union approach for all keys
-    if (!key.decal) {
+    if (!key.decal || isHardwareItem) {
       // Determine border color based on hover/selection state
       const selectionColor = options.selectionColor ?? KeyRenderer.SELECTION_COLOR
       const borderColor = options.isHovered
@@ -725,8 +728,8 @@ export class KeyRenderer {
           ctx,
           params,
           borderColor,
-          params.darkColor, // fill color
-          params.lightColor, // inner color
+          isHardwareItem ? '#d8d8d8' : params.darkColor, // fill color
+          isHardwareItem ? '#ffffff' : params.lightColor, // inner color
           sizes.strokeWidth,
           sizes.bevelMargin,
         )
@@ -737,15 +740,15 @@ export class KeyRenderer {
           rectangles,
           sizes.roundOuter,
           borderColor,
-          params.darkColor, // fill color
-          params.lightColor, // inner color
+          isHardwareItem ? '#d8d8d8' : params.darkColor, // fill color
+          isHardwareItem ? '#ffffff' : params.lightColor, // inner color
           sizes.strokeWidth,
         )
       }
     }
 
     // For decal keys, only draw outline if selected, hovered, or search match
-    if (key.decal && (options.isSelected || options.isHovered || options.isSearchMatch)) {
+    if (key.decal && !isHardwareItem && (options.isSelected || options.isHovered || options.isSearchMatch)) {
       const selectionColor = options.selectionColor ?? KeyRenderer.SELECTION_COLOR
       const decalBorderColor = options.isHovered
         ? selectionColor
@@ -786,6 +789,60 @@ export class KeyRenderer {
     // Draw homing nub
     if (key.nub) {
       this.drawHomingNub(ctx, params)
+    }
+
+    if (isHardwareItem) {
+      const hardwareId = key.st?.startsWith('hardware:') ? key.st.slice(9) : ''
+      const descriptor = hardwareLayoutDescriptor(hardwareId)
+      if (descriptor) {
+        const bottom = (key as Key & { hardwareFace?: 'top' | 'bottom' }).hardwareFace === 'bottom'
+        const rect = { x: params.outercapx, y: params.outercapy, width: params.outercapwidth, height: params.outercapheight }
+        ctx.save()
+        if (bottom) {
+          ctx.globalAlpha = 0.72
+          ctx.setLineDash([5, 3])
+          ctx.strokeStyle = '#555'
+          ctx.lineWidth = 1.5
+          ctx.strokeRect(rect.x, rect.y, rect.width, rect.height)
+        }
+        const override = (key as Key & { hardwarePortDirection?: 'top' | 'right' | 'bottom' | 'left' }).hardwarePortDirection
+        // Axis-aligned keys have already been rotated into the canvas
+        // coordinates. Arbitrary rotations are applied by the surrounding
+        // canvas transform, so their arrow remains in the local direction.
+        const arrowEdge = axisAlignedAngle !== null && axisAlignedAngle !== 0
+          ? hardwareArrowDirectionForRotation(hardwareId, key.rotation_angle ?? 0, override)
+          : hardwareArrowDirectionForRotation(hardwareId, 0, override)
+        if (arrowEdge) {
+          const cx = arrowEdge === 'left' ? rect.x : arrowEdge === 'right' ? rect.x + rect.width : rect.x + rect.width / 2
+          const cy = arrowEdge === 'top' ? rect.y : arrowEdge === 'bottom' ? rect.y + rect.height : rect.y + rect.height / 2
+          const dx = arrowEdge === 'left' ? -1 : arrowEdge === 'right' ? 1 : 0
+          const dy = arrowEdge === 'top' ? -1 : arrowEdge === 'bottom' ? 1 : 0
+          const arrow = 5
+          ctx.globalAlpha = bottom ? 0.7 : 1
+          ctx.strokeStyle = '#146c94'
+          ctx.fillStyle = '#146c94'
+          ctx.lineWidth = 1.5
+          ctx.beginPath()
+          ctx.moveTo(cx - dx * arrow, cy - dy * arrow)
+          ctx.lineTo(cx + dx * arrow, cy + dy * arrow)
+          ctx.stroke()
+          const drawArrowHead = (direction: 1 | -1) => {
+            const tipX = cx + dx * arrow * direction
+            const tipY = cy + dy * arrow * direction
+            const baseX = cx + dx * (arrow - 3) * direction
+            const baseY = cy + dy * (arrow - 3) * direction
+            ctx.beginPath()
+            ctx.moveTo(tipX, tipY)
+            ctx.lineTo(baseX - dy * 2 * direction, baseY + dx * 2 * direction)
+            ctx.lineTo(baseX + dy * 2 * direction, baseY - dx * 2 * direction)
+            ctx.closePath()
+            ctx.fill()
+          }
+          drawArrowHead(1)
+          if (descriptor.directionMode === 'operation-axis') drawArrowHead(-1)
+        }
+        ctx.restore()
+      }
     }
 
     // Note: Label rendering is handled separately in canvas-renderer

@@ -1,0 +1,553 @@
+{
+  "id": "PMW3610_SEIBOKU",
+  "authority": "Community: snize (carrier adaptation)",
+  "source": "https://raw.githubusercontent.com/snize/BOB-PMW3610-SEIBOKU/34b5dbdef9589b50f4b01dc21540d15811400a6a/BOB-PMW3610-SEIBOKU.kicad_pcb",
+  "sha256": "78dc6ff6fd5bdff894cffb5509db2d134b1b129a0a0d7dbef6e8fde4346926f9",
+  "license": "seiboku-license.md",
+  "modifications": [
+    "Carrier footprint for assembled SEIBOKU: copied J1 pad geometry and H1-H4 mounting holes; centered on board/optical center; board envelope on F.Fab; no sensor circuitry copied",
+    "Use a 2x04 2.54 mm mating socket and spacers with lens facing away from the carrier; verify lens and case clearances"
+  ],
+  "nodes": [
+    [
+      "layer",
+      "F.Cu"
+    ],
+    [
+      "attr",
+      "through_hole"
+    ],
+    [
+      "pad",
+      "",
+      "np_thru_hole",
+      "circle",
+      [
+        "at",
+        13.0,
+        -8.0
+      ],
+      [
+        "size",
+        2.2,
+        2.2
+      ],
+      [
+        "drill",
+        2.2
+      ],
+      [
+        "layers",
+        "*.Cu",
+        "*.Mask"
+      ]
+    ],
+    [
+      "pad",
+      "",
+      "np_thru_hole",
+      "circle",
+      [
+        "at",
+        13.0,
+        8.0
+      ],
+      [
+        "size",
+        2.2,
+        2.2
+      ],
+      [
+        "drill",
+        2.2
+      ],
+      [
+        "layers",
+        "*.Cu",
+        "*.Mask"
+      ]
+    ],
+    [
+      "pad",
+      "",
+      "np_thru_hole",
+      "circle",
+      [
+        "at",
+        -13.0,
+        -8.0
+      ],
+      [
+        "size",
+        2.2,
+        2.2
+      ],
+      [
+        "drill",
+        2.2
+      ],
+      [
+        "layers",
+        "*.Cu",
+        "*.Mask"
+      ]
+    ],
+    [
+      "pad",
+      "",
+      "np_thru_hole",
+      "circle",
+      [
+        "at",
+        -13.0,
+        8.0
+      ],
+      [
+        "size",
+        2.2,
+        2.2
+      ],
+      [
+        "drill",
+        2.2
+      ],
+      [
+        "layers",
+        "*.Cu",
+        "*.Mask"
+      ]
+    ],
+    [
+      "pad",
+      "1",
+      "thru_hole",
+      "rect",
+      [
+        "at",
+        -13.0,
+        -3.62
+      ],
+      [
+        "size",
+        1.7,
+        1.7
+      ],
+      [
+        "drill",
+        1
+      ],
+      [
+        "layers",
+        "*.Cu",
+        "*.Mask"
+      ],
+      [
+        "remove_unused_layers",
+        "no"
+      ]
+    ],
+    [
+      "pad",
+      "2",
+      "thru_hole",
+      "oval",
+      [
+        "at",
+        -10.46,
+        -3.62
+      ],
+      [
+        "size",
+        1.7,
+        1.7
+      ],
+      [
+        "drill",
+        1
+      ],
+      [
+        "layers",
+        "*.Cu",
+        "*.Mask"
+      ],
+      [
+        "remove_unused_layers",
+        "no"
+      ]
+    ],
+    [
+      "pad",
+      "3",
+      "thru_hole",
+      "oval",
+      [
+        "at",
+        -13.0,
+        -1.08
+      ],
+      [
+        "size",
+        1.7,
+        1.7
+      ],
+      [
+        "drill",
+        1
+      ],
+      [
+        "layers",
+        "*.Cu",
+        "*.Mask"
+      ],
+      [
+        "remove_unused_layers",
+        "no"
+      ]
+    ],
+    [
+      "pad",
+      "4",
+      "thru_hole",
+      "oval",
+      [
+        "at",
+        -10.46,
+        -1.08
+      ],
+      [
+        "size",
+        1.7,
+        1.7
+      ],
+      [
+        "drill",
+        1
+      ],
+      [
+        "layers",
+        "*.Cu",
+        "*.Mask"
+      ],
+      [
+        "remove_unused_layers",
+        "no"
+      ]
+    ],
+    [
+      "pad",
+      "5",
+      "thru_hole",
+      "oval",
+      [
+        "at",
+        -13.0,
+        1.46
+      ],
+      [
+        "size",
+        1.7,
+        1.7
+      ],
+      [
+        "drill",
+        1
+      ],
+      [
+        "layers",
+        "*.Cu",
+        "*.Mask"
+      ],
+      [
+        "remove_unused_layers",
+        "no"
+      ]
+    ],
+    [
+      "pad",
+      "6",
+      "thru_hole",
+      "oval",
+      [
+        "at",
+        -10.46,
+        1.46
+      ],
+      [
+        "size",
+        1.7,
+        1.7
+      ],
+      [
+        "drill",
+        1
+      ],
+      [
+        "layers",
+        "*.Cu",
+        "*.Mask"
+      ],
+      [
+        "remove_unused_layers",
+        "no"
+      ]
+    ],
+    [
+      "pad",
+      "7",
+      "thru_hole",
+      "oval",
+      [
+        "at",
+        -13.0,
+        4.0
+      ],
+      [
+        "size",
+        1.7,
+        1.7
+      ],
+      [
+        "drill",
+        1
+      ],
+      [
+        "layers",
+        "*.Cu",
+        "*.Mask"
+      ],
+      [
+        "remove_unused_layers",
+        "no"
+      ]
+    ],
+    [
+      "pad",
+      "8",
+      "thru_hole",
+      "oval",
+      [
+        "at",
+        -10.46,
+        4.0
+      ],
+      [
+        "size",
+        1.7,
+        1.7
+      ],
+      [
+        "drill",
+        1
+      ],
+      [
+        "layers",
+        "*.Cu",
+        "*.Mask"
+      ],
+      [
+        "remove_unused_layers",
+        "no"
+      ]
+    ],
+    [
+      "property",
+      "Reference",
+      "REF**",
+      [
+        "at",
+        0,
+        -12
+      ],
+      [
+        "layer",
+        "F.SilkS"
+      ],
+      [
+        "effects",
+        [
+          "font",
+          [
+            "size",
+            1,
+            1
+          ],
+          [
+            "thickness",
+            0.15
+          ]
+        ]
+      ]
+    ],
+    [
+      "property",
+      "Value",
+      "PMW3610_SEIBOKU",
+      [
+        "at",
+        0,
+        12
+      ],
+      [
+        "layer",
+        "F.Fab"
+      ],
+      [
+        "effects",
+        [
+          "font",
+          [
+            "size",
+            1,
+            1
+          ],
+          [
+            "thickness",
+            0.15
+          ]
+        ]
+      ]
+    ],
+    [
+      "fp_rect",
+      [
+        "start",
+        -15,
+        -10
+      ],
+      [
+        "end",
+        15,
+        10
+      ],
+      [
+        "stroke",
+        [
+          "width",
+          0.1
+        ],
+        [
+          "type",
+          "solid"
+        ]
+      ],
+      [
+        "fill",
+        "none"
+      ],
+      [
+        "layer",
+        "F.Fab"
+      ]
+    ]
+  ],
+  "pads": [
+    {
+      "number": "",
+      "x": 13.0,
+      "y": -8.0,
+      "width": 2.2,
+      "height": 2.2,
+      "drill": 2.2,
+      "type": "np_thru_hole"
+    },
+    {
+      "number": "",
+      "x": 13.0,
+      "y": 8.0,
+      "width": 2.2,
+      "height": 2.2,
+      "drill": 2.2,
+      "type": "np_thru_hole"
+    },
+    {
+      "number": "",
+      "x": -13.0,
+      "y": -8.0,
+      "width": 2.2,
+      "height": 2.2,
+      "drill": 2.2,
+      "type": "np_thru_hole"
+    },
+    {
+      "number": "",
+      "x": -13.0,
+      "y": 8.0,
+      "width": 2.2,
+      "height": 2.2,
+      "drill": 2.2,
+      "type": "np_thru_hole"
+    },
+    {
+      "number": "1",
+      "x": -13.0,
+      "y": -3.62,
+      "width": 1.7,
+      "height": 1.7,
+      "drill": 1,
+      "type": "thru_hole"
+    },
+    {
+      "number": "2",
+      "x": -10.46,
+      "y": -3.62,
+      "width": 1.7,
+      "height": 1.7,
+      "drill": 1,
+      "type": "thru_hole"
+    },
+    {
+      "number": "3",
+      "x": -13.0,
+      "y": -1.08,
+      "width": 1.7,
+      "height": 1.7,
+      "drill": 1,
+      "type": "thru_hole"
+    },
+    {
+      "number": "4",
+      "x": -10.46,
+      "y": -1.08,
+      "width": 1.7,
+      "height": 1.7,
+      "drill": 1,
+      "type": "thru_hole"
+    },
+    {
+      "number": "5",
+      "x": -13.0,
+      "y": 1.46,
+      "width": 1.7,
+      "height": 1.7,
+      "drill": 1,
+      "type": "thru_hole"
+    },
+    {
+      "number": "6",
+      "x": -10.46,
+      "y": 1.46,
+      "width": 1.7,
+      "height": 1.7,
+      "drill": 1,
+      "type": "thru_hole"
+    },
+    {
+      "number": "7",
+      "x": -13.0,
+      "y": 4.0,
+      "width": 1.7,
+      "height": 1.7,
+      "drill": 1,
+      "type": "thru_hole"
+    },
+    {
+      "number": "8",
+      "x": -10.46,
+      "y": 4.0,
+      "width": 1.7,
+      "height": 1.7,
+      "drill": 1,
+      "type": "thru_hole"
+    }
+  ]
+}

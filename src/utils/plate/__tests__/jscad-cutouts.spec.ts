@@ -53,6 +53,7 @@ const RECTANGULAR_OUTLINE: PlateBuilderOptions['outline'] = {
   tightMargin: 5,
   mergeWithCutouts: false,
   filletRadius: 0,
+  repairMode: 'auto-repair',
 }
 
 // ---------------------------------------------------------------------------
@@ -76,6 +77,37 @@ describe('placeGeom2', () => {
     const b = bbox(placed)
     expect(b.width).toBeCloseTo(10, 4)
     expect(b.height).toBeCloseTo(10, 4)
+  })
+})
+
+describe('split tight plate output and manufacturing geometry', () => {
+  it('emits a closed polyline outline for rotated and multi-unit keys', async () => {
+    const keys = [
+      createKey({ x: 0, y: 0, width: 2, rotation_angle: 45 }),
+      createKey({ x: 2.5, y: 0, width: 1, rotation_angle: 80 }),
+      createKey({ x: 0, y: 1, width: 1, height: 2, ghost: true }),
+    ]
+    const result = await buildPlate(keys, {
+      cutoutType: 'cherry-mx-basic',
+      stabilizerType: 'mx-basic',
+      spacingX: 19.05,
+      spacingY: 19.05,
+      outline: {
+        outlineType: 'tight',
+        marginTop: 5,
+        marginBottom: 5,
+        marginLeft: 5,
+        marginRight: 5,
+        tightMargin: 1,
+        mergeWithCutouts: false,
+        filletRadius: 1,
+        repairMode: 'auto-repair',
+      },
+    })
+    expect(result.outlineDxfContent).toContain('POLYLINE')
+    expect(result.outlineDxfContent).toMatch(/70\n1/)
+    expect(result.outlineDxfContent).not.toContain('\nARC\n')
+    expect(result.outlineDxfContent?.match(/\nSEQEND\n/g)?.length).toBeGreaterThan(0)
   })
 })
 
@@ -222,8 +254,8 @@ describe('createCircleHoleGeom', () => {
 describe('buildJscadScript output content', () => {
   const keys = [createKey({ x: 0, y: 0, width: 2, height: 1 })]
 
-  it('split keyboard with tight outline — both halves appear as outline_0 + outline_1 union', async () => {
-    // Two separate key clusters with a large gap between them — tight outline produces 2 disjoint chains
+  it('unibody tight outline connects separated key clusters into one plate sheet', async () => {
+    // Two separated clusters are connected with the deterministic minimum web.
     const splitKeys = [
       createKey({ x: 0, y: 0, width: 1, height: 1 }),
       createKey({ x: 20, y: 0, width: 1, height: 1 }), // 20U gap ensures disjoint outlines
@@ -239,12 +271,13 @@ describe('buildJscadScript output content', () => {
         tightMargin: 2,
         mergeWithCutouts: false,
         filletRadius: 0,
+        repairMode: 'auto-repair',
       },
     })
     expect(result.jscadScript).toBeDefined()
-    expect(result.jscadScript).toContain('const outline_0 = polygon({')
-    expect(result.jscadScript).toContain('const outline_1 = polygon({')
-    expect(result.jscadScript).toContain('const outline = union(outline_0, outline_1)')
+    expect(result.jscadScript).toContain('const outline = polygon({')
+    expect(result.jscadScript).not.toContain('const outline_0 = polygon({')
+    expect(result.jscadScript).not.toContain('const outline_1 = polygon({')
   })
 
   it('cherry-mx-openable script uses union(base, notches), not subtract', async () => {

@@ -1,3 +1,5 @@
+import { ensureHardwareIds } from '@/utils/hardware/identity'
+import { hardwareSizeInUnits } from '@/data/hardware-layout'
 import { defineStore } from 'pinia'
 import type { Ref } from 'vue'
 import { ref, computed, watch } from 'vue'
@@ -93,11 +95,13 @@ export const useKeyboardStore = defineStore('keyboard', () => {
   const metadata: Ref<KeyboardMetadata> = ref(new KeyboardMetadata())
   const filename: Ref<string> = ref('')
   const clipboard: Ref<Key[]> = ref([])
+  const hardwareSettings = ref<Record<string, unknown>>({})
   const historyIndex = ref(-1)
   const history: Ref<
     {
       keys: Key[]
       metadata: KeyboardMetadata
+      hardwareSettings?: Record<string, unknown>
     }[]
   > = ref([])
   // Smart dirty detection: compare current state to baseline snapshot
@@ -107,6 +111,7 @@ export const useKeyboardStore = defineStore('keyboard', () => {
     return JSON.stringify({
       keys: keys.value,
       metadata: metadata.value,
+      hardwareSettings: hardwareSettings.value,
     })
   }
 
@@ -228,7 +233,10 @@ export const useKeyboardStore = defineStore('keyboard', () => {
     }
   }
 
+  let nextHardwareId = 1
+
   const saveState = () => {
+    nextHardwareId = ensureHardwareIds(keys.value, nextHardwareId)
     // Remove any states after current index
     history.value = history.value.slice(0, historyIndex.value + 1)
 
@@ -236,6 +244,7 @@ export const useKeyboardStore = defineStore('keyboard', () => {
     history.value.push({
       keys: JSON.parse(JSON.stringify(keys.value)),
       metadata: JSON.parse(JSON.stringify(metadata.value)),
+      hardwareSettings: JSON.parse(JSON.stringify(hardwareSettings.value)),
     })
 
     historyIndex.value = history.value.length - 1
@@ -541,6 +550,12 @@ export const useKeyboardStore = defineStore('keyboard', () => {
     return false
   }
 
+  const setHardwareSettings = (value: Record<string, unknown>) => {
+    if (!history.value.length) saveState()
+    hardwareSettings.value = JSON.parse(JSON.stringify(value))
+    saveState()
+  }
+
   const undo = () => {
     if (!canUndo.value) return
 
@@ -550,6 +565,7 @@ export const useKeyboardStore = defineStore('keyboard', () => {
 
     keys.value = JSON.parse(JSON.stringify(state.keys))
     metadata.value = JSON.parse(JSON.stringify(state.metadata))
+    hardwareSettings.value = JSON.parse(JSON.stringify(state.hardwareSettings ?? {}))
     selectedKeys.value = []
 
     // Notify canvas of potential bounds changes (undo doesn't call saveState)
@@ -570,6 +586,7 @@ export const useKeyboardStore = defineStore('keyboard', () => {
 
     keys.value = JSON.parse(JSON.stringify(state.keys))
     metadata.value = JSON.parse(JSON.stringify(state.metadata))
+    hardwareSettings.value = JSON.parse(JSON.stringify(state.hardwareSettings ?? {}))
     selectedKeys.value = []
 
     // Notify canvas of potential bounds changes (redo doesn't call saveState)
@@ -610,7 +627,25 @@ export const useKeyboardStore = defineStore('keyboard', () => {
       )
     }
     try {
+      hardwareSettings.value = {}
+      nextHardwareId = 1
       keys.value = JSON.parse(JSON.stringify(keyboard.keys))
+      // Repair hardware items saved by older builds with a generic KLE size.
+      // Keep the editor and KiCad geometry aligned whenever a layout is loaded
+      // (including local reload).
+      const trrsSize = hardwareSizeInUnits('split-trrs-jack-pj320a')
+      const seibokuHeaderSize = hardwareSizeInUnits('seiboku-jumper-header')
+      for (const key of keys.value) {
+        if (!key.decal || !key.st.startsWith('hardware:')) continue
+        const size = key.st === 'hardware:split-trrs-jack-pj320a' ? trrsSize
+          : key.st === 'hardware:seiboku-jumper-header' ? seibokuHeaderSize
+            : undefined
+        if (!size) continue
+        key.width = size.width
+        key.height = size.height
+        key.width2 = size.width
+        key.height2 = size.height
+      }
       // Merge with defaults to ensure all standard properties exist
       const defaults = new KeyboardMetadata()
       metadata.value = { ...defaults, ...JSON.parse(JSON.stringify(keyboard.meta)) }
@@ -665,6 +700,7 @@ export const useKeyboardStore = defineStore('keyboard', () => {
    * Resets font to default and triggers view reset.
    */
   const clearLayout = () => {
+    hardwareSettings.value = {}
     keys.value = []
     selectedKeys.value = []
     metadata.value = new KeyboardMetadata()
@@ -1702,6 +1738,8 @@ export const useKeyboardStore = defineStore('keyboard', () => {
     metadata,
     filename,
     clipboard,
+    hardwareSettings,
+    setHardwareSettings,
     historyIndex,
     history,
     dirty,

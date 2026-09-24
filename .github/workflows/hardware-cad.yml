@@ -1,0 +1,45 @@
+name: Hardware CAD verification
+on:
+  push:
+    branches: [master]
+  pull_request:
+jobs:
+  kicad-9:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run test:hardware:fixtures
+      - name: Verify independent processes and time zones produce identical ZIPs
+        run: |
+          cp -R .cache/hardware-kicad .cache/hardware-first
+          TZ=Pacific/Honolulu pnpm run test:hardware:fixtures
+          for path in .cache/hardware-first/*.zip; do cmp "$path" ".cache/hardware-kicad/$(basename "$path")"; done
+      - name: KiCad 9 ERC, DRC, schematic parity and netlist checks
+        run: >-
+          docker run --rm --user root
+          -v "$PWD:/workspace" -w /workspace
+          --entrypoint python3 kicad/kicad:9.0.9
+          scripts/check-hardware-kicad.py .cache/hardware-kicad
+      - name: Generate wireless battery RGB schematic fixtures
+        run: SCHEMATIC_FIXTURE_DIR=.cache/schematic-review pnpm run test:unit src/utils/hardware/__tests__/schematic.spec.ts
+      - name: Verify RGB schematic completeness, ERC and PCB parity
+        run: >-
+          docker run --rm --user root
+          -v "$PWD:/workspace" -w /workspace
+          --entrypoint python3 kicad/kicad:9.0.9
+          scripts/check-schematic-fixtures.py .cache/schematic-review
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: hardware-kicad-verification
+          path: |
+            .cache/hardware-kicad
+            .cache/schematic-review

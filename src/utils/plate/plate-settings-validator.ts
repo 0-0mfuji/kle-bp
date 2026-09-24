@@ -36,6 +36,8 @@ const KNOWN_OUTLINE_KEYS_RECTANGULAR = new Set([
 const KNOWN_OUTLINE_KEYS_TIGHT = new Set([
   'outlineType',
   'tightMargin',
+  'bridgeWidth',
+  'repairMode',
   'filletRadius',
   'mergeWithCutouts',
 ])
@@ -183,6 +185,11 @@ export function validatePlateSettingsJson(text: string): ValidationResult {
       if ('tightMargin' in outline && !isFiniteNumber(outline.tightMargin)) {
         return { valid: false, error: `'outline.tightMargin' must be a finite number` }
       }
+      if ('bridgeWidth' in outline && (!isFiniteNumber(outline.bridgeWidth) || outline.bridgeWidth <= 0)) {
+        return { valid: false, error: `'outline.bridgeWidth' must be a positive finite number` }
+      }
+      if ('repairMode' in outline && outline.repairMode !== 'auto-repair' && outline.repairMode !== 'legacy-warning')
+        return { valid: false, error: "Invalid value for 'outline.repairMode'" }
       if ('filletRadius' in outline && !isFiniteNumber(outline.filletRadius)) {
         return { valid: false, error: `'outline.filletRadius' must be a finite number` }
       }

@@ -26,6 +26,7 @@ const baseDefaults: PlateSettings = {
     tightMargin: 5,
     mergeWithCutouts: true,
     filletRadius: 1,
+    repairMode: 'auto-repair',
   },
   mountingHoles: { enabled: false, diameter: 3, edgeDistance: 3 },
   customHoles: { enabled: false, holes: [] },
@@ -131,6 +132,7 @@ describe('serializePlateSettings', () => {
           filletRadius: 2,
           mergeWithCutouts: false,
           tightMargin: 5,
+          repairMode: 'auto-repair',
         },
       }),
     )
@@ -143,16 +145,18 @@ describe('serializePlateSettings', () => {
         outline: {
           outlineType: 'tight',
           tightMargin: 4,
+          bridgeWidth: 2.5,
           filletRadius: 1,
           mergeWithCutouts: true,
           marginTop: 5,
           marginBottom: 5,
           marginLeft: 5,
           marginRight: 5,
+          repairMode: 'auto-repair',
         },
       }),
     )
-    expect(json.outline).toMatchObject({ outlineType: 'tight', tightMargin: 4 })
+    expect(json.outline).toMatchObject({ outlineType: 'tight', tightMargin: 4, bridgeWidth: 2.5 })
   })
 })
 
@@ -224,6 +228,7 @@ describe('deserializePlateSettings', () => {
         filletRadius: 2,
         mergeWithCutouts: false,
         tightMargin: 5,
+        repairMode: 'auto-repair',
       },
     })
     const json = serializePlateSettings(original)
@@ -239,18 +244,29 @@ describe('deserializePlateSettings', () => {
       outline: {
         outlineType: 'tight',
         tightMargin: 4,
+        bridgeWidth: 2.5,
         filletRadius: 1,
         mergeWithCutouts: true,
         marginTop: 5,
         marginBottom: 5,
         marginLeft: 5,
         marginRight: 5,
+        repairMode: 'auto-repair',
       },
     })
     const json = serializePlateSettings(original)
     const restored = deserializePlateSettings(json, baseDefaults)
     expect(restored.outline.outlineType).toBe('tight')
     expect(restored.outline.tightMargin).toBe(4)
+    expect(restored.outline.bridgeWidth).toBe(2.5)
+  })
+
+  it('defaults missing repair mode to auto repair and preserves explicit legacy mode', () => {
+    const missing = deserializePlateSettings({ outline: { outlineType: 'tight' } }, baseDefaults)
+    expect(missing.outline.repairMode).toBe('auto-repair')
+    const legacy = deserializePlateSettings({ outline: { outlineType: 'tight', repairMode: 'legacy-warning' } }, baseDefaults)
+    expect(legacy.outline.repairMode).toBe('legacy-warning')
+    expect(serializePlateSettings(legacy).outline).toMatchObject({ repairMode: 'legacy-warning' })
   })
 
   it('round-trips enabled+empty customHoles without losing enabled state', () => {

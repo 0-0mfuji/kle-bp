@@ -17,6 +17,7 @@
           :can-delete="canDelete"
           @add-key="addKey"
           @add-special-key="addSpecialKey"
+          @add-hardware="addHardware"
           @delete-keys="deleteKeys"
         />
 
@@ -53,6 +54,7 @@
         :can-delete="canDelete"
         @add-key="addKey"
         @add-special-key="addSpecialKey"
+        @add-hardware="addHardware"
         @delete-keys="deleteKeys"
       />
 
@@ -118,6 +120,8 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useKeyboardStore } from '@/stores/keyboard'
+import { useHardwareModelStore } from '@/stores/hardwareModel'
+import { hardwareSizeInUnits, hardwareDefaultFace, formatHardwareDimensions } from '@/data/hardware-layout'
 import { useLayoutEditorSettingsStore } from '@/stores/layoutEditorSettings'
 import { useCharacterPickerStore } from '@/stores/characterPicker'
 import { SPECIAL_KEYS, type SpecialKeyTemplate } from '@/data/specialKeys'
@@ -130,9 +134,11 @@ import CharacterPickerModal from './CharacterPickerModal.vue'
 import ToolbarEditSection from './ToolbarEditSection.vue'
 import ToolbarToolsSection from './ToolbarToolsSection.vue'
 import ToolbarHistorySection from './ToolbarHistorySection.vue'
+import type { HardwarePaletteItem } from './ToolbarEditSection.vue'
 
 // Store
 const keyboardStore = useKeyboardStore()
+const hardwareStore = useHardwareModelStore()
 const layoutEditorSettingsStore = useLayoutEditorSettingsStore()
 const characterPickerStore = useCharacterPickerStore()
 
@@ -169,6 +175,149 @@ interface ExtraTool {
 const extraTools = computed((): ExtraTool[] => {
   const isPreview = keyboardStore.isLayoutPreviewMode
   return [
+    {
+      id: 'hardware-controller-rp2040',
+      name: 'Add Controller: XIAO RP2040',
+      description: 'Add a XIAO RP2040 controller to this keyboard layout',
+      disabled: isPreview,
+      action: () => {
+        addHardware({
+          id: 'xiao-rp2040',
+          label: 'xiao-rp2040',
+          ...hardwareSizeInUnits('xiao-rp2040'),
+          color: '#eeeeee',
+        })
+      },
+    },
+    {
+      id: 'hardware-controller-nrf52840',
+      name: 'Add Controller: XIAO nRF52840',
+      description: 'Add a XIAO nRF52840 controller to this keyboard layout',
+      disabled: isPreview,
+      action: () => {
+        addHardware({
+          id: 'xiao-nrf52840',
+          label: 'xiao-nrf52840',
+          ...hardwareSizeInUnits('xiao-nrf52840'),
+          color: '#eeeeee',
+        })
+      },
+    },
+    {
+      id: 'hardware-controller-nrf52840-plus',
+      name: 'Add Controller: XIAO nRF52840 Plus',
+      description: 'Add a XIAO nRF52840 Plus controller to this keyboard layout',
+      disabled: isPreview,
+      action: () => {
+        addHardware({
+          id: 'xiao-nrf52840-plus',
+          label: 'xiao-nrf52840-plus',
+          ...hardwareSizeInUnits('xiao-nrf52840-plus'),
+          color: '#eeeeee',
+        })
+      },
+    },
+    {
+      id: 'hardware-device-ec11',
+      name: 'Add Device: EC11',
+      description: 'Add an EC11 encoder to this keyboard layout',
+      disabled: isPreview,
+      action: () => {
+        addHardware({ id: 'ec11', label: 'ec11', ...hardwareSizeInUnits('ec11'), color: '#eeeeee' })
+      },
+    },
+    {
+      id: 'hardware-device-pmw3610',
+      name: 'Add Device: PMW3610 SEIBOKU',
+      description: 'Add a PMW3610 SEIBOKU trackball to this keyboard layout',
+      disabled: isPreview,
+      action: () => {
+        addHardware({
+          id: 'pmw3610',
+          label: 'pmw3610',
+          ...hardwareSizeInUnits('pmw3610'),
+          color: '#eeeeee',
+        })
+      },
+    },
+    {
+      id: 'hardware-device-seiboku-jumper-header',
+      name: 'Add Device: SEIBOKU jumper header',
+      description: 'Add a real-size 2x4 2.54 mm SEIBOKU jumper header to this keyboard layout',
+      disabled: isPreview,
+      action: () => {
+        addHardware({
+          id: 'seiboku-jumper-header',
+          label: 'seiboku-jumper-header',
+          ...hardwareSizeInUnits('seiboku-jumper-header'),
+          color: '#d5f0d2',
+        })
+      },
+    },
+    {
+      id: 'hardware-device-oled',
+      name: 'Add Device: SSD1306 OLED',
+      description: 'Add an SSD1306 OLED to this keyboard layout',
+      disabled: isPreview,
+      action: () => {
+        addHardware({
+          id: 'ssd1306-oled',
+          label: 'ssd1306-oled',
+          ...hardwareSizeInUnits('ssd1306-oled'),
+          color: '#eeeeee',
+        })
+      },
+    },
+    {
+      id: 'hardware-split-trrs',
+      name: 'Add Split: TRRS PJ-320A',
+      description: 'Add a TRRS jack to this keyboard layout; place one on each split side',
+      disabled: isPreview,
+      action: () => {
+        addHardware({
+          id: 'split-trrs-jack-pj320a',
+          label: 'split-trrs-jack-pj320a',
+          ...hardwareSizeInUnits('split-trrs-jack-pj320a'),
+          color: '#eeeeee',
+        })
+      },
+    },
+    {
+      id: 'hardware-switch-mx',
+      name: 'Set Switch: MX',
+      description: 'Use MX switches for this keyboard layout',
+      disabled: isPreview,
+      action: () => {
+        hardwareStore.switchKind = 'mx'
+      },
+    },
+    {
+      id: 'hardware-switch-choc',
+      name: 'Set Switch: Choc v1',
+      description: 'Use Kailh Choc v1 switches for this keyboard layout',
+      disabled: isPreview,
+      action: () => {
+        hardwareStore.switchKind = 'choc-v1'
+      },
+    },
+    {
+      id: 'hardware-split',
+      name: 'Set Architecture: Wired split',
+      description: 'Use a wired split architecture for this keyboard layout',
+      disabled: isPreview,
+      action: () => {
+        hardwareStore.architecture = 'wired-split'
+      },
+    },
+    {
+      id: 'hardware-unibody',
+      name: 'Set Architecture: Unibody',
+      description: 'Use a unibody architecture for this keyboard layout',
+      disabled: isPreview,
+      action: () => {
+        hardwareStore.architecture = 'unibody'
+      },
+    },
     {
       id: 'legend-tools',
       name: 'Legend Tools',
@@ -269,6 +418,31 @@ const addKey = () => {
 const addSpecialKey = (specialKey: SpecialKeyTemplate) => {
   if (keyboardStore.isLayoutPreviewMode) return
   keyboardStore.addKey(specialKey.data)
+  requestCanvasFocus()
+}
+
+const addHardware = (item: HardwarePaletteItem) => {
+  if (keyboardStore.isLayoutPreviewMode) return
+
+  const labels = Array(12).fill('') as import('@adamws/kle-serial').Array12<string>
+  labels[0] = item.label.replace(/^(Controller: |Device: |Power: |Battery: |Visual only: )/, '')
+  labels[4] = `${formatHardwareDimensions(item.id)} · ${hardwareDefaultFace(item.id) === 'bottom' ? 'Bottom' : 'Top'}`
+
+  keyboardStore.addKey({
+    labels,
+    width: item.width,
+    height: item.height,
+    // KLE treats width2/height2 as the second rectangle of a stepped key.
+    // Hardware blocks are rectangular, so keep both envelopes identical;
+    // otherwise the default 1U x 1U second rectangle is also rendered.
+    width2: item.width,
+    height2: item.height,
+    color: item.color,
+    decal: true,
+    profile: 'hardware',
+    st: `hardware:${item.id}`,
+    hardwareFace: hardwareDefaultFace(item.id),
+  } as Partial<import('@adamws/kle-serial').Key> & { hardwareFace: 'top' | 'bottom' })
   requestCanvasFocus()
 }
 

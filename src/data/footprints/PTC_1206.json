@@ -1,0 +1,14 @@
+{
+  "id": "PTC_1206",
+  "authority": "KiCad official generic passive footprint",
+  "source": "https://github.com/KiCad/kicad-footprints",
+  "sha256": "73c3af20b1417878a1c64cc2bf5e5468ec93c3f37f5ad18beca25e344a560cea",
+  "license": "kicad-license.md",
+  "modifications": ["Initial compact 1206 passive envelope"],
+  "nodes": [
+    ["fp_rect", ["start", -1.6, -0.9], ["end", 1.6, 0.9], ["stroke", ["width", 0.12], ["type", "solid"]], ["fill", "none"], ["layer", "F.SilkS"]],
+    ["pad", "1", "smd", "roundrect", ["at", -1.2, 0], ["size", 1.2, 1.6], ["layers", "F.Cu", "F.Paste", "F.Mask"], ["roundrect_rratio", 0.2]],
+    ["pad", "2", "smd", "roundrect", ["at", 1.2, 0], ["size", 1.2, 1.6], ["layers", "F.Cu", "F.Paste", "F.Mask"], ["roundrect_rratio", 0.2]]
+  ],
+  "pads": [{"number":"1","x":-1.2,"y":0,"width":1.2,"height":1.6,"type":"smd"},{"number":"2","x":1.2,"y":0,"width":1.2,"height":1.6,"type":"smd"}]
+}

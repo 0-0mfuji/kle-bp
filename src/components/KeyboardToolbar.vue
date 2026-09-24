@@ -4,21 +4,6 @@
     <!-- Everything fits one row at every width because the preset dropdown, previously
          the widest control here by far, now lives in the Import menu. -->
     <div class="d-flex flex-row align-items-center gap-2 gap-sm-3 justify-content-end">
-      <!-- Only shown to signed-in users; accounts are optional and off by default.
-           Kept out of the button group below so it reads as its own destination,
-           not a fourth import/export action. -->
-      <button
-        v-if="authStore.isSignedIn"
-        class="btn btn-outline-primary flex-shrink-0"
-        data-testid="my-layouts"
-        type="button"
-        title="Your saved layouts"
-        @click="showMyLayoutsModal = true"
-      >
-        <span class="d-none d-sm-inline">My Layouts</span>
-        <span class="d-inline d-sm-none">Layouts</span>
-      </button>
-
       <!-- Import/Export/Share buttons -->
       <div class="btn-group" role="group">
         <div class="dropdown">
@@ -214,31 +199,12 @@
 
           <!-- Short links need a session to create, so the caret only exists for
                signed-in users, the same gate as the My Layouts button above. -->
-          <template v-if="authStore.isSignedIn">
-            <button
-              class="btn btn-primary dropdown-toggle dropdown-toggle-split"
-              data-testid="share-options"
-              data-bs-toggle="dropdown"
-              aria-expanded="false"
-              type="button"
-              :disabled="shortLinksStore.busy"
-              title="More share options"
-            >
-              <span class="visually-hidden">More share options</span>
-            </button>
+          <div v-if="canCreateShortLink" class="dropdown">
+            <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-testid="share-options" title="Create a short share link"></button>
             <ul class="dropdown-menu dropdown-menu-end">
-              <li>
-                <a
-                  class="dropdown-item"
-                  data-testid="create-short-link"
-                  href="#"
-                  @click.prevent="showShortLinkConfirmModal = true"
-                >
-                  Create short link
-                </a>
-              </li>
+              <li><button class="dropdown-item" type="button" data-testid="create-short-link" @click="showShortLinkModal = true">Create short link</button></li>
             </ul>
-          </template>
+          </div>
         </div>
       </div>
     </div>
@@ -257,17 +223,14 @@
     <PresetImportModal :is-visible="showPresetImportModal" @close="showPresetImportModal = false" />
     <QmkImportModal :is-visible="showQmkImportModal" @close="showQmkImportModal = false" />
     <ViaImportModal :is-visible="showViaImportModal" @close="showViaImportModal = false" />
-    <MyLayoutsModal :is-visible="showMyLayoutsModal" @close="showMyLayoutsModal = false" />
-    <ShortLinkConfirmModal
-      :is-visible="showShortLinkConfirmModal"
-      @close="showShortLinkConfirmModal = false"
-    />
+    <ShortLinkConfirmModal :is-visible="showShortLinkModal" @close="showShortLinkModal = false" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useKeyboardStore } from '@/stores/keyboard'
+import { useAuthStore } from '@/stores/auth'
 import { TOP_PRESETS, applyPreset, type Preset } from '@/utils/presets'
 import { toast } from '@/composables/useToast'
 import { useKeyboardExport } from '@/composables/useKeyboardExport'
@@ -276,16 +239,14 @@ import UrlImportModal from './UrlImportModal.vue'
 import PresetImportModal from './PresetImportModal.vue'
 import QmkImportModal from './QmkImportModal.vue'
 import ViaImportModal from './ViaImportModal.vue'
-import MyLayoutsModal from './MyLayoutsModal.vue'
 import ShortLinkConfirmModal from './ShortLinkConfirmModal.vue'
-import { useAuthStore } from '@/stores/auth'
-import { useShortLinksStore } from '@/stores/short-links'
 
 import BiBoxArrowUpRight from 'bootstrap-icons/icons/box-arrow-up-right.svg'
 
 const keyboardStore = useKeyboardStore()
 const authStore = useAuthStore()
-const shortLinksStore = useShortLinksStore()
+const showShortLinkModal = ref(false)
+const canCreateShortLink = computed(() => authStore.isSignedIn)
 
 // Loading goes through utils/presets.ts so this shortcut and the "From Preset"
 // modal cannot drift apart.
@@ -321,9 +282,7 @@ const { triggerFileUpload, handleFileUpload } = useKeyboardImport(fileInput)
 const showUrlImportModal = ref(false)
 const showPresetImportModal = ref(false)
 const showQmkImportModal = ref(false)
-const showMyLayoutsModal = ref(false)
 const showViaImportModal = ref(false)
-const showShortLinkConfirmModal = ref(false)
 
 // Share
 const shareLayout = async () => {

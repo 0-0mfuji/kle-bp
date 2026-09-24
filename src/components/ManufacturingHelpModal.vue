@@ -24,7 +24,7 @@
         <div class="d-flex flex-wrap align-items-center">
           <figure class="example-figure">
             <img
-              src="/cherry-mx-pcb-stabilizer-3d.png"
+              :src="`${assetBase}cherry-mx-pcb-stabilizer-3d.png`"
               alt="Example of Cherry MX stabilizer orientation"
               class="example-image"
             />
@@ -32,7 +32,7 @@
           </figure>
           <figure class="example-figure">
             <img
-              src="/cherry-mx-pcb-stabilizer-pcb.png"
+              :src="`${assetBase}cherry-mx-pcb-stabilizer-pcb.png`"
               alt="Example of Cherry MX stabilizer PCB footprint orientation"
               class="example-image"
             />
@@ -40,7 +40,7 @@
           </figure>
           <figure class="example-figure">
             <img
-              src="/cherry-mx-pcb-stabilizer-cutout.png"
+              :src="`${assetBase}cherry-mx-pcb-stabilizer-cutout.png`"
               alt="Example of Cherry MX plate cutout orientation"
               class="example-image"
             />
@@ -54,6 +54,8 @@
 
 <script setup lang="ts">
 import BaseHelpModal from './BaseHelpModal.vue'
+
+const assetBase = import.meta.env.BASE_URL
 
 interface Props {
   isVisible: boolean

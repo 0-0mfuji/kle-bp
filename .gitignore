@@ -33,3 +33,22 @@ test-results/
 playwright-report/
 e2e/test-output/
 .vercel
+
+# Generated hardware verification fixtures
+.cache/hardware-*/
+
+# Local caches / package stores
+.cache/
+.pnpm-store/
+.history/
+
+# Environment files with local secrets
+.env
+.env.local
+.env.*.local
+
+# Third-party reference projects (separate git repositories, not part of this project)
+/refarence/
+
+# Locally generated export samples
+/example/

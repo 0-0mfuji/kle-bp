@@ -4,7 +4,7 @@
       <div class="row">
         <div class="col-md-6">
           <div>
-            <strong>Keyboard Layout Editor NG</strong>{{ ' ' }}
+            <strong>Keyboard Hardware CAD</strong>{{ ' ' }}
             <a
               :href="versionUrl"
               target="_blank"
@@ -14,7 +14,8 @@
               {{ versionText }}
             </a>
           </div>
-          Successor of
+          Independent, unofficial KLE-NG derivative.<br />
+          Based on
           <a
             href="https://www.keyboard-layout-editor.com/"
             target="_blank"

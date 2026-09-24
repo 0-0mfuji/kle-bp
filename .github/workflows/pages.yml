@@ -1,0 +1,66 @@
+name: Deploy to GitHub Pages
+
+# Publishes this fork to https://<owner>.github.io/<repo>/.
+# Built with every upstream service switched off so the fork never talks to the
+# upstream KLE-NG infrastructure (Supabase accounts, KiCad backend, custom domain).
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build app and docs
+        env:
+          NODE_ENV: production
+          VITE_BASE_PATH: /${{ github.event.repository.name }}/
+          # Override the upstream values committed in .env.production (process env wins
+          # over .env files in Vite). Empty disables accounts and the PCB backend.
+          VITE_SUPABASE_URL: ''
+          VITE_SUPABASE_ANON_KEY: ''
+          VITE_BACKEND_URL: ''
+        run: |
+          pnpm run build
+          pnpm run build:docs
+          cp dist/index.html dist/404.html
+          touch dist/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: ./dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

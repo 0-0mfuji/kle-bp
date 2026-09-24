@@ -5,6 +5,14 @@ Visit [editor.keyboard-tools.xyz](https://editor.keyboard-tools.xyz/) and start 
 
 ## Interface Overview
 
+### Keyboard Hardware CAD
+
+The Hardware CAD workspace is the primary workflow. It combines the existing KLE layout editor
+with registered circuit blocks and produces a local KiCad 9+ project, BOM, and `project.json`.
+The workflow is `Layout → Devices → Controller / Power → Validate → Export`. It does not use
+accounts, Supabase, or a remote PCB worker. Export the JSON project file when you need to move or
+share work; the MVP does not persist drafts.
+
 ### Layout Editor
 
 The main editing area where keys are displayed and manipulated. Click to select individual keys, drag to box-select multiple keys, and use side toolbar to launch editing tools.

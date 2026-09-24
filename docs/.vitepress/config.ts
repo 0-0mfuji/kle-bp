@@ -4,20 +4,11 @@ export default defineConfig({
   title: 'KLE-NG Documentation',
   description: 'User documentation for Keyboard Layout Editor NG',
 
-  base: '/docs/',
+  // Follows the app's VITE_BASE_PATH so the docs live under it on GitHub Pages.
+  base: `${process.env.VITE_BASE_PATH || '/'}docs/`,
   outDir: '../dist/docs',
 
-  head: [
-    ['link', { rel: 'icon', href: '/docs/favicon.ico' }],
-    [
-      'script',
-      {
-        defer: '',
-        src: 'https://cloud.umami.is/script.js',
-        'data-website-id': '4e25208b-5f07-4aca-b8fc-15cd6f487a5a',
-      },
-    ],
-  ],
+  head: [['link', { rel: 'icon', href: `${process.env.VITE_BASE_PATH || '/'}docs/favicon.ico` }]],
 
   themeConfig: {
     nav: [

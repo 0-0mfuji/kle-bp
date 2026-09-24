@@ -515,6 +515,68 @@ describe('Plate Builder – DXF switch cutouts', () => {
   })
 })
 
+describe('Plate Builder – connected acrylic tight outline', () => {
+  it('produces one connected outer polyline for a standard 3x2 key cluster', async () => {
+    const keys = Array.from({ length: 6 }, (_, index) => createKey({
+      x: index % 3,
+      y: Math.floor(index / 3),
+      width: 1,
+      height: 1,
+    }))
+    const result = await buildPlate(keys, {
+      cutoutType: 'cherry-mx-basic',
+      outline: {
+        outlineType: 'tight',
+        marginTop: 5,
+        marginBottom: 5,
+        marginLeft: 5,
+        marginRight: 5,
+        tightMargin: 1,
+        bridgeWidth: 2,
+        mergeWithCutouts: true,
+        filletRadius: 1,
+        repairMode: 'auto-repair',
+      },
+    })
+
+    const outlinePolylines = parseDxfPolylines(result.outlineDxfContent!)
+    expect(outlinePolylines).toHaveLength(1)
+    expect(outlinePolylines[0]!.length).toBeGreaterThan(4)
+
+    // The standard download is an acrylic-ready file: one outer contour plus
+    // six switch cutouts.
+    expect(parseDxfPolylines(result.dxfContent)).toHaveLength(7)
+    expect(result.mergedDxfContent).toBe(result.dxfContent)
+  })
+
+  it('keeps a concave notch while connecting a staggered cluster', async () => {
+    const keys = [
+      createKey({ x: 0, y: 0, width: 1, height: 1 }),
+      createKey({ x: 1, y: 0, width: 1, height: 1 }),
+      createKey({ x: 0, y: 1, width: 1, height: 1 }),
+    ]
+    const result = await buildPlate(keys, {
+      cutoutType: 'cherry-mx-basic',
+      outline: {
+        outlineType: 'tight',
+        marginTop: 5,
+        marginBottom: 5,
+        marginLeft: 5,
+        marginRight: 5,
+        tightMargin: 1,
+        bridgeWidth: 2,
+        mergeWithCutouts: true,
+        filletRadius: 1,
+        repairMode: 'auto-repair',
+      },
+    })
+
+    const vertices = parseDxfPolylines(result.outlineDxfContent!)[0]!
+    expect(vertices.length).toBeGreaterThanOrEqual(8)
+    expect(vertices.some((point) => point.x < -9 && point.y < -9)).toBe(true)
+  })
+})
+
 // ---------------------------------------------------------------------------
 // Stabilizer cutout tests
 // ---------------------------------------------------------------------------

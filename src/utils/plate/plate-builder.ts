@@ -18,10 +18,14 @@ import type {
   MountingHolesSettings,
   CustomHolesSettings,
   BacksideFeature,
+  CustomHole,
 } from '@/types/plate'
 import { getMakerJs } from '@/utils/makerjs-loader'
 import { getKeyCenterMm } from '@/utils/keyboard-geometry'
 import { D } from '@/utils/decimal-math'
+import { buildManufacturingOutline, minimumRectangleClearance, type OutlineRectangle, type OutlineSegment, type TightOutline } from '@/utils/geometry/tight-outline'
+import { layoutKeyId } from '@/utils/hardware/identity'
+import { rotatedKeyCenterX } from '@/utils/hardware/geometry'
 import {
   positionCutout,
   getCutoutGenerator,
@@ -102,6 +106,31 @@ export interface PlateBuilderOptions {
   backsideFeatures?: BacksideFeature[]
   /** Cut depth in mm from back face for all backside features (default: 1.0) */
   backsideDepth?: number
+  /** Shared layout-space origin used when generating a split side. */
+  originCenterMm?: { x: number; y: number }
+}
+
+export interface PlateSplitScope {
+  boundaryX: number
+  assignments: Record<string, 'left' | 'right'>
+}
+
+export function plateSideForKey(key: Key, index: number, split: PlateSplitScope): 'left' | 'right' {
+  return split.assignments[layoutKeyId(key, index)] ?? (rotatedKeyCenterX(key) < split.boundaryX ? 'left' : 'right')
+}
+
+export function filterPlateSideKeys(keys: Key[], split: PlateSplitScope, side: 'left' | 'right'): Key[] {
+  return keys.filter((key, index) => plateSideForKey(key, index, split) === side)
+}
+
+export function filterPlateSideCustomHoles(
+  holes: CustomHole[],
+  originKey: Key,
+  split: PlateSplitScope,
+  side: 'left' | 'right',
+): CustomHole[] {
+  const originX = rotatedKeyCenterX(originKey)
+  return holes.filter((hole) => (originX + hole.offsetX < split.boundaryX ? 'left' : 'right') === side)
 }
 
 /**
@@ -213,8 +242,11 @@ function keyToCutoutPosition(
     rotationAngle: -(key.rotation_angle || 0),
     width: generator.width,
     height: generator.height,
-    footprintWidth: generator.width + ((key.width || 1) - 1) * spacingX,
-    footprintHeight: generator.height + ((key.height || 1) - 1) * spacingY,
+    // The outline follows the physical key pitch, not the switch cutout. A
+    // 1U key occupies one full pitch cell (19.05mm by default); using the
+    // 14mm cutout here creates one disconnected island per key.
+    footprintWidth: (key.width || 1) * spacingX,
+    footprintHeight: (key.height || 1) * spacingY,
   }
 }
 
@@ -300,61 +332,161 @@ function createTightOutlineModel(
   makerjs: typeof MakerJs,
   cutoutPositions: KeyCutoutPosition[],
   margin: number,
-): MakerJs.IModel {
-  const paddedModels: Record<string, MakerJs.IModel> = {}
-  const keys: string[] = []
+  cornerRadius = margin,
+  bridgeWidth = 2,
+  repairMode: OutlineSettings['repairMode'] = 'auto-repair',
+): { model: MakerJs.IModel; geometry: TightOutline } {
+  const protectedCutouts: OutlineRectangle[] = cutoutPositions.map((pos) => ({
+    center: { x: pos.centerX + pos.width / 2, y: pos.centerY + pos.height / 2 },
+    width: pos.width,
+    height: pos.height,
+    rotation: pos.rotationAngle,
+  }))
+  const outline = buildManufacturingOutline(
+    cutoutPositions.map((pos) => ({
+      center: { x: pos.centerX + pos.width / 2, y: pos.centerY + pos.height / 2 },
+      width: pos.footprintWidth,
+      height: pos.footprintHeight,
+      rotation: pos.rotationAngle,
+    })),
+    margin,
+    cornerRadius,
+    {
+      bridgeWidth,
+      minimumWebWidth: bridgeWidth,
+      repairMode,
+      protectedRectangles: protectedCutouts,
+    },
+  )
+  const models: Record<string, MakerJs.IModel> = {}
+  outline.rings.forEach((ring, ringIndex) => {
+    const paths: Record<string, MakerJs.IPath> = {}
+    ring.segments.forEach((segment, segmentIndex) => {
+      paths[`segment_${segmentIndex}`] = makerSegment(makerjs, segment)
+    })
+    models[`ring_${ringIndex}`] = { paths }
+  })
+  return { model: { models }, geometry: outline }
+}
 
-  for (let i = 0; i < cutoutPositions.length; i++) {
-    const pos = cutoutPositions[i]!
-    // Use the key's full footprint (key.width * spacingX, key.height * spacingY) as the base
-    // rectangle so that non-1U keys (2U, ISO enter, etc.) are properly covered without needing
-    // extra outline rectangles.
-    const paddedWidth = pos.footprintWidth + 2 * margin
-    const paddedHeight = pos.footprintHeight + 2 * margin
+function dxfNumber(value: number): string {
+  return (Math.round(value * 1e6) / 1e6).toString()
+}
 
-    // Create Rectangle with bottom-left at local [0, 0]
-    let padded: MakerJs.IModel = new makerjs.models.Rectangle(paddedWidth, paddedHeight)
+function angleAt(center: { x: number; y: number }, point: { x: number; y: number }): number {
+  return Math.atan2(point.y - center.y, point.x - center.x)
+}
 
-    // Center at world origin so rotation happens around the footprint center
-    padded = makerjs.model.move(padded, [-paddedWidth / 2, -paddedHeight / 2])
-
-    // Rotate around world [0,0] (= the key center) — same convention as positionCutout
-    if (pos.rotationAngle !== 0) {
-      padded = makerjs.model.rotate(padded, pos.rotationAngle, [0, 0])
-    }
-
-    // Place at key center.
-    // pos.centerX is the bottom-left of the cutout, so pos.centerX + pos.width/2 = key center.
-    // makerjs.model.move SETS the origin (not additive).
-    const keyCenterX = pos.centerX + pos.width / 2
-    const keyCenterY = pos.centerY + pos.height / 2
-    padded = makerjs.model.move(padded, [
-      keyCenterX - paddedWidth / 2,
-      keyCenterY - paddedHeight / 2,
-    ])
-
-    const k = `padded_${i}`
-    paddedModels[k] = padded
-    keys.push(k)
+function circleForArc(segment: Extract<OutlineSegment, { kind: 'arc' }>) {
+  const a = segment.start
+  const b = segment.mid
+  const c = segment.end
+  const determinant = 2 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y))
+  if (Math.abs(determinant) < 1e-7) return null
+  const aa = a.x * a.x + a.y * a.y
+  const bb = b.x * b.x + b.y * b.y
+  const cc = c.x * c.x + c.y * c.y
+  const center = {
+    x: (aa * (b.y - c.y) + bb * (c.y - a.y) + cc * (a.y - b.y)) / determinant,
+    y: (aa * (c.x - b.x) + bb * (a.x - c.x) + cc * (b.x - a.x)) / determinant,
   }
+  return { center, radius: Math.hypot(center.x - a.x, center.y - a.y) }
+}
 
-  // Iteratively union all padded models.
-  // Non-overlapping shapes (e.g. split keyboard halves) are kept as separate loops.
-  let result: MakerJs.IModel = {
-    models: { [keys[0]!]: makerjs.model.clone(paddedModels[keys[0]!]!) },
-  }
-  for (let i = 1; i < keys.length; i++) {
-    const next: MakerJs.IModel = {
-      models: { [keys[i]!]: makerjs.model.clone(paddedModels[keys[i]!]!) },
-    }
-    makerjs.model.combineUnion(result, next)
-    result = {
-      models: { ...result.models, ...next.models },
-      paths: { ...result.paths, ...next.paths },
-    }
-  }
+function sampleOutlineSegment(segment: OutlineSegment, chordError = 0.05): Array<{ x: number; y: number }> {
+  if (segment.kind === 'line') return [segment.start, segment.end]
+  const circle = circleForArc(segment)
+  if (!circle || circle.radius <= 0) return [segment.start, segment.end]
+  const start = angleAt(circle.center, segment.start)
+  let end = angleAt(circle.center, segment.end)
+  let mid = angleAt(circle.center, segment.mid)
+  while (end < start) end += Math.PI * 2
+  while (mid < start) mid += Math.PI * 2
+  if (mid > end) end -= Math.PI * 2
+  const sweep = end - start
+  const maxAngle = 2 * Math.acos(Math.max(-1, Math.min(1, 1 - chordError / circle.radius)))
+  const count = Math.max(1, Math.ceil(Math.abs(sweep) / Math.max(maxAngle, Math.PI / 180)))
+  return Array.from({ length: count + 1 }, (_, index) => {
+    const angle = start + sweep * index / count
+    return { x: circle.center.x + circle.radius * Math.cos(angle), y: circle.center.y + circle.radius * Math.sin(angle) }
+  })
+}
 
-  return result
+function tightOutlineDxf(outline: TightOutline): string {
+  const entities: string[] = []
+  outline.rings.forEach((ring) => {
+    const points = ring.segments.flatMap((segment, segmentIndex) => {
+      const sampled = sampleOutlineSegment(segment)
+      return segmentIndex === 0 ? sampled : sampled.slice(1)
+    })
+    if (points.length < 3) return
+    const lines = ['0', 'POLYLINE', '8', 'OUTLINE', '66', '1', '70', '1']
+    for (const point of [...points, points[0]!])
+      lines.push('0', 'VERTEX', '8', 'OUTLINE', '10', dxfNumber(point.x), '20', dxfNumber(point.y), '30', '0')
+    lines.push('0', 'SEQEND', '8', 'OUTLINE')
+    entities.push(lines.join('\n'))
+  })
+  return ['0', 'SECTION', '2', 'ENTITIES', ...entities.flatMap((entity) => entity.split('\n')), '0', 'ENDSEC', '0', 'EOF', ''].join('\n')
+}
+
+function mergeDxfContents(base: string, outline: string): string {
+  const extract = (content: string) => {
+    const lines = content.split(/\r?\n/)
+    const start = lines.findIndex((line, index) => line === 'ENTITIES' && lines[index - 1] === '2')
+    const end = lines.findIndex((line, index) => line === 'ENDSEC' && index > start)
+    if (start < 0 || end <= start) return []
+    const entities = lines.slice(start + 1, end)
+    // ENDSEC is preceded by the entity type code `0`; it belongs to the
+    // ENDSEC marker, not to the last entity. Keep the merged section valid.
+    if (entities[entities.length - 1] === '0') entities.pop()
+    return entities
+  }
+  const combined = [...extract(base), ...extract(outline)]
+  return ['0', 'SECTION', '2', 'ENTITIES', ...combined, '0', 'ENDSEC', '0', 'EOF', ''].join('\n')
+}
+
+function validateTightOutline(outline: TightOutline): string | null {
+  if (!outline.rings.length) return 'no outline rings were generated'
+  for (const ring of outline.rings) {
+    if (ring.points.length < 3 || !ring.segments.length) return 'an outline ring has fewer than three corners'
+    for (const segment of ring.segments) {
+      if (![segment.start.x, segment.start.y, segment.end.x, segment.end.y].every(Number.isFinite))
+        return 'an outline segment contains a non-finite coordinate'
+    }
+    for (let index = 0; index < ring.segments.length; index++) {
+      const current = ring.segments[index]!
+      const next = ring.segments[(index + 1) % ring.segments.length]!
+      if (Math.hypot(current.end.x - next.start.x, current.end.y - next.start.y) > 1e-5)
+        return 'outline segments are not closed and contiguous'
+    }
+  }
+  return null
+}
+
+function makerSegment(makerjs: typeof MakerJs, segment: OutlineSegment): MakerJs.IPath {
+  if (segment.kind === 'line') return new makerjs.paths.Line([segment.start.x, segment.start.y], [segment.end.x, segment.end.y])
+  const circle = circleThroughPoints(segment.start, segment.mid, segment.end)
+  if (!circle) return new makerjs.paths.Line([segment.start.x, segment.start.y], [segment.end.x, segment.end.y])
+  const angle = (point: { x: number; y: number }) => Math.atan2(point.y - circle.center.y, point.x - circle.center.x) * 180 / Math.PI
+  const start = angle(segment.start)
+  let end = angle(segment.end)
+  const mid = angle(segment.mid)
+  while (end < start) end += 360
+  let adjustedMid = mid
+  while (adjustedMid < start) adjustedMid += 360
+  if (adjustedMid > end) end -= 360
+  return new makerjs.paths.Arc([circle.center.x, circle.center.y], circle.radius, start, end)
+}
+
+function circleThroughPoints(a: { x: number; y: number }, b: { x: number; y: number }, c: { x: number; y: number }) {
+  const determinant = 2 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y))
+  if (Math.abs(determinant) < 1e-7) return null
+  const aa = a.x * a.x + a.y * a.y, bb = b.x * b.x + b.y * b.y, cc = c.x * c.x + c.y * c.y
+  const center = {
+    x: (aa * (b.y - c.y) + bb * (c.y - a.y) + cc * (a.y - b.y)) / determinant,
+    y: (aa * (c.x - b.x) + bb * (a.x - c.x) + cc * (b.x - a.x)) / determinant,
+  }
+  return { center, radius: Math.hypot(center.x - a.x, center.y - a.y) }
 }
 
 /**
@@ -533,6 +665,20 @@ function outlineToGeom2(makerjs: typeof MakerJs, outlineModel: MakerJs.IModel): 
 
   if (polys.length === 0) throw new PlateBuilderError('Outline model produced no closed chains')
   return polys.reduce((a, b) => union(a, b) as Geom2)
+}
+
+function tightOutlineToGeom2(outline: TightOutline): Geom2 {
+  const { polygon } = jscadModeling.primitives
+  const { union } = jscadModeling.booleans
+  const polygons = outline.rings.map((ring) => {
+    const points = ring.segments.flatMap((segment, index) => {
+      const sampled = sampleOutlineSegment(segment, 0.05)
+      return index === 0 ? sampled : sampled.slice(1)
+    })
+    return polygon({ points: points.map((point) => [point.x, point.y] as [number, number]) }) as Geom2
+  })
+  if (!polygons.length) throw new PlateBuilderError('Outline model produced no closed rings')
+  return polygons.reduce((left, right) => union(left, right) as Geom2)
 }
 
 /**
@@ -822,7 +968,7 @@ export async function buildPlate(
   }
 
   // Use the first non-ghost key's center as the coordinate origin
-  const originCenterMm = getKeyCenterMm(cutoutKeys[0]!, spacingX, spacingY)
+  const originCenterMm = options.originCenterMm ?? getKeyCenterMm(cutoutKeys[0]!, spacingX, spacingY)
 
   // Convert cutout keys to positions (used for switch/stab geometry)
   const cutoutPositions = cutoutKeys.map((key) =>
@@ -1196,24 +1342,54 @@ export async function buildPlate(
 
   // Create outline model if enabled
   let outlineModel: MakerJs.IModel | null = null
+  let tightOutlineGeometry: TightOutline | null = null
+  const warnings: string[] = []
   if (outline?.outlineType === 'tight') {
-    outlineModel = createTightOutlineModel(makerjs, outlinePositions, outline.tightMargin)
-    // Apply fillet AFTER the union is fully built — not during per-key rect creation.
-    // chain.fillet clips the existing paths in-place and returns new arc paths to merge in.
-    if (outline.filletRadius > 0) {
-      const chains = makerjs.model.findChains(outlineModel) as MakerJs.IChain[]
-      if (chains) {
-        const allFilletPaths: Record<string, MakerJs.IPath> = {}
-        chains.forEach((chain, chainIndex) => {
-          const filletModel = makerjs.chain.fillet(chain, outline.filletRadius)
-          if (filletModel?.paths) {
-            for (const key in filletModel.paths) {
-              allFilletPaths[`c${chainIndex}_${key}`] = filletModel.paths[key]!
-            }
-          }
-        })
-        outlineModel.paths = { ...outlineModel.paths, ...allFilletPaths }
-      }
+    const tightModel = createTightOutlineModel(
+      makerjs,
+      outlinePositions,
+      outline.tightMargin,
+      outline.filletRadius,
+      outline.bridgeWidth,
+      outline.repairMode,
+    )
+    outlineModel = tightModel.model
+    tightOutlineGeometry = tightModel.geometry
+    if (tightOutlineGeometry.valid === false) {
+      const diagnostic = tightOutlineGeometry.diagnostics?.[0]
+      throw new PlateBuilderError(`TIGHT_OUTLINE_INVALID: ${diagnostic?.message ?? 'manufacturing geometry validation failed'}${diagnostic?.ringIndex !== undefined ? ` (ring ${diagnostic.ringIndex}, segment ${diagnostic.segmentIndex ?? 0})` : ''}.`)
+    }
+    const outlineError = validateTightOutline(tightOutlineGeometry)
+    if (outlineError) throw new PlateBuilderError(`TIGHT_OUTLINE_INVALID: ${outlineError}.`)
+    const rectangularFallback = tightOutlineGeometry.diagnostics?.some((diagnostic) => diagnostic.code === 'OUTLINE_RECTANGULAR_FALLBACK') ?? false
+    if (rectangularFallback)
+      warnings.push('OUTLINE_RECTANGULAR_FALLBACK: tight outline repair was unsafe; an axis-aligned rectangular outline was generated. Review the plate edge before fabrication.')
+    const minimumWebWidth = outline.bridgeWidth ?? 2
+    const narrowCutout = cutoutPositions.find((position) =>
+      minimumRectangleClearance(tightOutlineGeometry!, {
+        center: { x: position.centerX + position.width / 2, y: position.centerY + position.height / 2 },
+        width: position.width,
+        height: position.height,
+        rotation: position.rotationAngle,
+      }) < minimumWebWidth - 0.01,
+    )
+    if (narrowCutout) throw new PlateBuilderError(`PLATE_MINIMUM_WEB_INVALID: switch cutout near (${narrowCutout.centerX.toFixed(3)}, ${narrowCutout.centerY.toFixed(3)}) has less than ${minimumWebWidth} mm of material.`)
+    const tightPaths = Object.values((outlineModel.models ?? {}) as Record<string, MakerJs.IModel>)
+    if (!tightPaths.length) throw new PlateBuilderError('TIGHT_OUTLINE_INVALID: no outline rings were generated.')
+    const narrowSegments = tightPaths.flatMap((ring) => Object.values(ring.paths ?? {}))
+      .filter((path): path is MakerJs.IPathLine => path.type === 'line')
+      .filter((path) => Math.hypot(path.end[0]! - path.origin[0]!, path.end[1]! - path.origin[1]!) < 2)
+    if (narrowSegments.length) warnings.push('OUTLINE_NARROW_NECK: one or more outline ligaments are narrower than 2 mm.')
+    const legacyNarrowDiagnostics = tightOutlineGeometry.diagnostics?.filter((diagnostic) => diagnostic.code === 'OUTLINE_NARROW_NECK_INVALID') ?? []
+    if (legacyNarrowDiagnostics.length && outline.repairMode === 'legacy-warning') {
+      warnings.push(`OUTLINE_NARROW_NECK_LEGACY: ${legacyNarrowDiagnostics.length} narrow outline neck(s) were preserved without repair.`)
+    }
+    if (!rectangularFallback && (tightOutlineGeometry.repairCount ?? 0) > 0) {
+      const coordinates = (tightOutlineGeometry.repairFocusMm ?? [])
+        .slice(0, 5)
+        .map((point) => `(${point.x.toFixed(3)}, ${point.y.toFixed(3)})`)
+        .join(', ')
+      warnings.push(`OUTLINE_REPAIRED: ${tightOutlineGeometry.repairCount} local narrow outline region(s)${coordinates ? ` at ${coordinates} mm` : ''}.`)
     }
   } else if (outline?.outlineType === 'rectangular') {
     outlineModel = createOutlineModel(makerjs, bounds, outlineMargins, outline.filletRadius)
@@ -1227,7 +1403,9 @@ export async function buildPlate(
     makerjs.model.walkPaths(outlineClean, (_mp: MakerJs.IModel, _pi: string, p: MakerJs.IPath) => {
       delete p.layer
     })
-    const outlineGeom = outlineToGeom2(makerjs, outlineClean)
+    const outlineGeom = tightOutlineGeometry
+      ? tightOutlineToGeom2(tightOutlineGeometry)
+      : outlineToGeom2(makerjs, outlineClean)
 
     let outlineScriptLines: string[] | undefined
     if (outline?.outlineType === 'rectangular') {
@@ -1296,7 +1474,7 @@ export async function buildPlate(
   const svgPreview = extendSvgViewBox(svgPreviewRaw, 1)
 
   // Generate SVG for download - uses actual mm units for CAD software
-  const svgDownload = makerjs.exporter.toSVG(plateModel, {
+  let svgDownload = makerjs.exporter.toSVG(plateModel, {
     units: makerjs.unitType.Millimeter,
     stroke: '#000',
     strokeWidth: '0.25mm',
@@ -1305,7 +1483,7 @@ export async function buildPlate(
   })
 
   // Generate DXF
-  const dxfContent = makerjs.exporter.toDXF(plateModel, {
+  let dxfContent = makerjs.exporter.toDXF(plateModel, {
     units: makerjs.unitType.Millimeter,
     usePOLYLINE: true,
   })
@@ -1323,8 +1501,10 @@ export async function buildPlate(
       units: makerjs.unitType.Millimeter,
     }
 
-    // Generate merged exports if merge option is enabled
-    if (outline?.mergeWithCutouts) {
+    // Tight Plate output is always useful as a single acrylic-sheet file:
+    // outer contour plus internal cutouts. Keep the explicit merge setting for
+    // rectangular/legacy projects and retain the separate outline files too.
+    if (outline?.mergeWithCutouts || outline?.outlineType === 'tight') {
       const mergedModel: MakerJs.IModel = {
         models: {
           plate: plateModel,
@@ -1359,6 +1539,15 @@ export async function buildPlate(
         units: makerjs.unitType.Millimeter,
         usePOLYLINE: true,
       })
+    }
+    if (tightOutlineGeometry) {
+      outlineDxfContent = tightOutlineDxf(tightOutlineGeometry)
+      if (mergedDxfContent) mergedDxfContent = mergeDxfContents(dxfContent, outlineDxfContent)
+    }
+
+    if (outline?.outlineType === 'tight' && mergedSvgDownload && mergedDxfContent) {
+      svgDownload = mergedSvgDownload
+      dxfContent = mergedDxfContent
     }
   }
 
@@ -1447,5 +1636,6 @@ export async function buildPlate(
     mergedDxfContent,
     jscadScript,
     stlData,
+    warnings: warnings.length ? warnings : undefined,
   }
 }

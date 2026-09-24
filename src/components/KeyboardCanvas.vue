@@ -183,6 +183,7 @@ import { mirrorKeys as mirrorKeysUtil, type MirrorAxis } from '@/utils/keyboard-
 import { renderScheduler } from '@/utils/utils/RenderScheduler'
 import { D } from '@/utils/decimal-math'
 import { keyIntersectsSelection } from '@/utils/geometry'
+import { layoutKeyId } from '@/utils/hardware/identity'
 import { hexToRgb } from '@/utils/color-utils'
 import { parseBorderRadius, createRoundedRectanglePath } from '@/utils/border-radius'
 import { extractKleLayoutWithFallback } from '@/utils/pixel-metadata'
@@ -320,6 +321,8 @@ const containerWidth = ref(0)
 
 const canvasFeedback = ref<string | null>(null)
 let canvasFeedbackTimer: ReturnType<typeof setTimeout> | null = null
+const outlineFocusPoint = ref<{ x: number; y: number } | null>(null)
+let outlineFocusTimer: ReturnType<typeof setTimeout> | null = null
 
 const showCanvasFeedback = (message: string) => {
   if (canvasFeedbackTimer) clearTimeout(canvasFeedbackTimer)
@@ -974,6 +977,8 @@ const drawMirrorAxis = (ctx: CanvasRenderingContext2D) => {
 }
 
 const renderKeyboard = (options?: { skipContainerBackground?: boolean }) => {
+  // A scheduled frame may run after the CAD workflow unmounts this canvas.
+  if (!containerRef.value) return
   if (renderer.value) {
     try {
       const ctx = renderer.value.getContext()
@@ -1062,6 +1067,22 @@ const renderKeyboard = (options?: { skipContainerBackground?: boolean }) => {
         keyboardStore.selectedKeys.length > 0
       ) {
         drawMirrorAxis(ctx)
+      }
+
+      if (outlineFocusPoint.value) {
+        const point = outlineFocusPoint.value
+        const size = 0.8
+        ctx.save()
+        ctx.strokeStyle = '#dc3545'
+        ctx.lineWidth = 0.12
+        ctx.setLineDash([0.25, 0.15])
+        ctx.beginPath()
+        ctx.moveTo(point.x - size, point.y)
+        ctx.lineTo(point.x + size, point.y)
+        ctx.moveTo(point.x, point.y - size)
+        ctx.lineTo(point.x, point.y + size)
+        ctx.stroke()
+        ctx.restore()
       }
 
       ctx.restore()
@@ -1991,6 +2012,56 @@ const resetView = () => {
   })
 }
 
+const focusKeys = async (ids: string[]) => {
+  const targets = keyboardStore.keys.filter((key, index) => ids.includes(layoutKeyId(key, index)))
+  if (!targets.length) return
+  keyboardStore.selectKeys(targets)
+  await nextTick()
+  const bounds = targets.reduce((acc, key) => ({
+    minX: Math.min(acc.minX, key.x), minY: Math.min(acc.minY, key.y),
+    maxX: Math.max(acc.maxX, key.x + key.width), maxY: Math.max(acc.maxY, key.y + key.height),
+  }), { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity })
+  if (containerRef.value) {
+    const baseUnit = renderOptions.value.unit
+    const fit = Math.min(
+      containerRef.value.clientWidth / Math.max(1, (bounds.maxX - bounds.minX) * baseUnit),
+      containerRef.value.clientHeight / Math.max(1, (bounds.maxY - bounds.minY) * baseUnit),
+    ) * 0.65
+    zoom.value = Math.max(0.75, Math.min(1.5, fit))
+  }
+  updateCanvasSize()
+  await nextTick()
+  const offset = getCoordinateSystemOffset()
+  const unit = renderOptions.value.unit * zoom.value
+  const centerX = (bounds.minX + bounds.maxX) / 2 * unit + offset.x * zoom.value
+  const centerY = (bounds.minY + bounds.maxY) / 2 * unit + offset.y * zoom.value
+  if (containerRef.value) {
+    containerRef.value.scrollLeft = Math.max(0, centerX - containerRef.value.clientWidth / 2)
+    containerRef.value.scrollTop = Math.max(0, centerY - containerRef.value.clientHeight / 2)
+  }
+  renderScheduler.schedule(renderKeyboard)
+}
+
+const focusOutlinePoint = async (pointMm: { x: number; y: number }) => {
+  if (!containerRef.value) return
+  const point = { x: pointMm.x / 19.05, y: pointMm.y / 19.05 }
+  outlineFocusPoint.value = point
+  if (outlineFocusTimer) clearTimeout(outlineFocusTimer)
+  outlineFocusTimer = setTimeout(() => {
+    outlineFocusPoint.value = null
+    renderScheduler.schedule(renderKeyboard)
+  }, 1500)
+  updateCanvasSize()
+  await nextTick()
+  const offset = getCoordinateSystemOffset()
+  const unit = renderOptions.value.unit * zoom.value
+  const centerX = point.x * unit + offset.x * zoom.value
+  const centerY = point.y * unit + offset.y * zoom.value
+  containerRef.value.scrollLeft = Math.max(0, centerX - containerRef.value.clientWidth / 2)
+  containerRef.value.scrollTop = Math.max(0, centerY - containerRef.value.clientHeight / 2)
+  renderScheduler.schedule(renderKeyboard)
+}
+
 const moveSelectedKeys = (deltaX: number, deltaY: number) => {
   keyboardStore.selectedKeys.forEach((key) => {
     key.x = D.add(key.x, deltaX)
@@ -2294,6 +2365,7 @@ function handleSearchQueryChange(query: string): void {
 
 // Cleanup
 const cleanup = () => {
+  if (outlineFocusTimer) clearTimeout(outlineFocusTimer)
   containerRef.value?.removeEventListener('scroll', handleContainerScroll)
   window.removeEventListener('resize', handleWindowResize)
   window.removeEventListener('canvas-zoom', handleExternalZoom as EventListener)
@@ -2357,7 +2429,7 @@ defineEmits<{
   'toggle-settings': []
 }>()
 
-defineExpose({})
+defineExpose({ focusKeys, focusOutlinePoint })
 </script>
 
 <style scoped>

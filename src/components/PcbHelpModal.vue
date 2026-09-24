@@ -17,7 +17,7 @@
       <div class="help-content">
         <img
           align="right"
-          src="/via-layout-example.png"
+          :src="`${assetBase}via-layout-example.png`"
           alt="Example of VIA layout format showing matrix coordinates on keycaps"
           class="help-image"
         />
@@ -49,14 +49,14 @@
         <img
           v-show="!isDarkTheme"
           align="right"
-          src="/pcb-generator-footprints-preview.png"
+          :src="`${assetBase}pcb-generator-footprints-preview.png`"
           alt="Example of footprint preview in PCB Generator"
           class="help-image"
         />
         <img
           v-show="isDarkTheme"
           align="right"
-          src="/pcb-generator-footprints-preview-dark.png"
+          :src="`${assetBase}pcb-generator-footprints-preview-dark.png`"
           alt="Example of footprint preview in PCB Generator"
           class="help-image"
         />
@@ -126,6 +126,8 @@ import { useTheme } from '@/composables/useTheme'
 import BiExclamationTriangle from 'bootstrap-icons/icons/exclamation-triangle.svg'
 import BiLightbulb from 'bootstrap-icons/icons/lightbulb.svg'
 import BiBoxArrowUpRight from 'bootstrap-icons/icons/box-arrow-up-right.svg'
+
+const assetBase = import.meta.env.BASE_URL
 
 interface Props {
   isVisible: boolean

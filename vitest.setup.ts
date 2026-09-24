@@ -1,3 +1,13 @@
+// Node 26 exposes an undefined native storage getter unless a file is configured.
+// Browser tests must use jsdom's per-window storage, never Node's shared storage.
+for (const name of ['localStorage', 'sessionStorage'] as const) {
+  Object.defineProperty(globalThis, name, {
+    configurable: true,
+    writable: true,
+    value: (globalThis as unknown as { jsdom: { window: Window } }).jsdom.window[name],
+  })
+}
+
 // Mock matchMedia for tests; jsdom does not implement it, and useTheme() queries
 // prefers-color-scheme as soon as any component using it mounts.
 globalThis.matchMedia =

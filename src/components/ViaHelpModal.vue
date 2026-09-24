@@ -5,7 +5,7 @@
       <div class="help-content">
         <img
           align="right"
-          src="/via-layout-example.png"
+          :src="`${assetBase}via-layout-example.png`"
           alt="Example of VIA layout format showing matrix coordinates on keycaps"
           class="via-example-image"
         />
@@ -122,6 +122,8 @@
 import BaseHelpModal from './BaseHelpModal.vue'
 import BiExclamationTriangleFill from 'bootstrap-icons/icons/exclamation-triangle-fill.svg'
 import BiBoxArrowUpRight from 'bootstrap-icons/icons/box-arrow-up-right.svg'
+
+const assetBase = import.meta.env.BASE_URL
 
 interface Props {
   isVisible: boolean

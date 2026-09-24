@@ -50,6 +50,8 @@ export type StabilizerType = (typeof STABILIZER_TYPE_VALUES)[number]
 /**
  * Settings for plate outline generation
  */
+import type { OutlineRepairMode } from './outline'
+
 export interface OutlineSettings {
   /** Outline generation mode: 'none' = disabled, 'rectangular' = axis-aligned bounding box, 'tight' = expanded hull */
   outlineType: 'none' | 'rectangular' | 'tight'
@@ -63,6 +65,10 @@ export interface OutlineSettings {
   marginRight: number
   /** Uniform margin in mm for tight outline mode */
   tightMargin: number
+  /** Minimum material web used to connect separate tight-outline regions. */
+  bridgeWidth?: number
+  /** Whether narrow manufacturing necks are locally repaired or only warned. */
+  repairMode: OutlineRepairMode
   /** Merge outline with cutouts into a single file on download */
   mergeWithCutouts: boolean
   /** Fillet (corner rounding) radius in mm for outline corners. 0 = sharp corners. */
@@ -190,6 +196,8 @@ export interface PlateGenerationResult {
   jscadScript?: string
   /** ASCII STL content for 3D export (optional, only when outline enabled) */
   stlData?: string
+  /** Non-fatal manufacturing warnings discovered while building the outline. */
+  warnings?: string[]
 }
 
 /**

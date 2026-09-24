@@ -1,5 +1,10 @@
 # PCB Generator
 
+> Legacy backend note: the external PCB job generator described below is no longer mounted in
+> the application. Use the local **Keyboard Hardware CAD** workspace for the current KiCad 9+
+> initial-design and BOM workflow. The legacy details are retained for reference while existing
+> projects migrate.
+
 The PCB Generator creates [KiCad](https://kicad.org) project files from your keyboard layout. It generates a key matrix schematic, places switch and diode footprints according to key positions, and can optionally route connections between components.
 
 <img src="/pcb-generator-panel-light.png" class="docs-screenshot light-only" alt="PCB generator panel" />

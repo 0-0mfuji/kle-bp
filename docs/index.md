@@ -41,3 +41,10 @@ hero:
     <div class="home-feature-link">Learn more →</div>
   </a>
 </div>
+# Keyboard Hardware CAD
+
+KLE-NG now includes a local-only Hardware CAD workspace. Use the workflow at the top of the editor:
+
+`Layout → Devices → Controller / Power → Validate → Export`
+
+The MVP generates a KiCad 9+ starting project, BOM, and `project.json` from registered circuit blocks. No account, Supabase project, or PCB-generation backend is required.

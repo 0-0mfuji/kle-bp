@@ -126,7 +126,7 @@ export function getCapacitorFootprintFilename(footprintValue: string): string {
  */
 export function getFootprintSvgUrl(filename: string, side: 'FRONT' | 'BACK'): string {
   const sideDir = side.toLowerCase()
-  return `/data/footprints/${sideDir}/${filename}`
+  return `${import.meta.env.BASE_URL}data/footprints/${sideDir}/${filename}`
 }
 
 /**
